@@ -155,8 +155,9 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
     <label>البريد الإلكتروني</label><input id="rMail" dir="ltr" placeholder="name@email.com">
     <label>رقم الموبايل</label><input id="rPhone" dir="ltr" placeholder="07XX XXX XXXX">
     <button class="btn full" onclick="makeQR()">✨ أنشئ باركودي</button>
-    <div class="qrbox" id="qrbox"><div class="qr"><span>باركود المشارك</span></div>
-      <p class="note" id="qrName">سيظهر باركودك هنا — تحتفظ به للحضور والشهادة.</p></div>
+    <div class="qrbox" id="qrbox"><div class="qr" id="qrImg"><span>باركود المشارك</span></div>
+      <p class="note" id="qrName">سيظهر باركودك هنا — تحتفظ به للحضور والشهادة.</p>
+      <a id="qrDl" class="btn" style="display:none;margin-top:10px" download="my-qr.png">⬇️ حفظ الباركود صورة</a></div>
   </section>
 
   <section class="panel" id="sched">
@@ -177,11 +178,34 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
 <footer>تطوير: مركز المستقبل لتطبيقات الذكاء الاصطناعي — م.د أحمد عدنان المحنّا · منصة المؤتمر (مسوّدة)</footer>
 <div class="draft">مسوّدة v0.7 — للمراجعة</div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@gh-pages/qrcode.min.js"></script>
 <script>
+const SB_URL="https://wuxoqqljppedalibkstb.supabase.co";
+const SB_KEY="sb_publishable_U4jxSWJba_85wZ7S_xjVUA_QDlg3ozS";
+const sb=supabase.createClient(SB_URL,SB_KEY);
+
 function show(id){document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id===id));document.getElementById(id).scrollIntoView({behavior:'smooth',block:'center'})}
-function makeQR(){const n=(document.getElementById('rName').value||'').trim();const b=document.getElementById('qrbox');b.classList.add('on');
-  document.getElementById('qrName').textContent=n?('باركود: '+n+' — (عرض تجريبي، يُربط بقاعدة البيانات لاحقاً)'):'اكتب اسمك ثم اضغط إنشاء — (عرض تجريبي)';
-  b.scrollIntoView({behavior:'smooth',block:'center'})}
+
+async function makeQR(){
+  const name=(document.getElementById('rName').value||'').trim();
+  const org=(document.getElementById('rOrg').value||'').trim();
+  const type=(document.getElementById('rType').value||'').trim();
+  const mail=(document.getElementById('rMail').value||'').trim();
+  const phone=(document.getElementById('rPhone').value||'').trim();
+  const nameEl=document.getElementById('qrName');
+  const box=document.getElementById('qrbox');box.classList.add('on');box.scrollIntoView({behavior:'smooth',block:'center'});
+  if(!name||!type||!mail){nameEl.textContent='⚠️ رجاءً أكمل الاسم والتصنيف والبريد الإلكتروني.';return}
+  const btn=document.querySelector('#reg .btn.full');const old=btn.textContent;btn.textContent='⏳ جارٍ التسجيل...';btn.disabled=true;
+  const token=(crypto.randomUUID?crypto.randomUUID():(Date.now()+''+Math.random()));
+  const {error}=await sb.from('registrants').insert({full_name:name,affiliation:org,email:mail,mobile:phone,category:type,qr_token:token});
+  btn.textContent=old;btn.disabled=false;
+  if(error){nameEl.textContent='تعذّر التسجيل، حاول مرة أخرى. ('+error.message+')';return}
+  const img=document.getElementById('qrImg');img.innerHTML='';
+  new QRCode(img,{text:token,width:180,height:180,colorDark:'#0a1730',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+  nameEl.innerHTML='✅ تم تسجيلك يا <b>'+name+'</b> — احتفظ بالباركود للحضور والشهادة.';
+  setTimeout(()=>{const c=img.querySelector('canvas'),a=document.getElementById('qrDl');if(c&&a){a.href=c.toDataURL('image/png');a.style.display='inline-block'}},300);
+}
 const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
 document.querySelectorAll('#stats b[data-c]').forEach(el=>{const t=+el.dataset.c,suf=el.dataset.suf||'';let i=0;const step=()=>{i+=Math.ceil(t/28);if(i>=t){el.textContent=t+suf}else{el.textContent=i;requestAnimationFrame(step)}};setTimeout(step,300)});
 /* الروبوت: يروح ويرجع + يوقف يلوّح كل فترة */
