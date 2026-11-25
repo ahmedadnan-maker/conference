@@ -166,18 +166,6 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
     <p class="note">سيعرض هنا جلسات اليومين (29 و30) مع المتحدثين والقاعات والأوقات، ويقدر المشارك يحفظ الجلسات التي تهمّه. 🛠️</p>
   </section>
 
-  <section class="panel" id="checkin">
-    <div class="loginhead"><div class="ic">✅</div><div><h2 style="margin:0">تسجيل الحضور</h2><p class="sub" style="margin:0">المؤتمر العلمي الثاني للعلوم والذكاء الاصطناعي</p></div></div>
-    <div id="ciBox" style="text-align:center;padding:18px"><p class="note">⏳ لحظة...</p></div>
-  </section>
-
-  <section class="panel" id="poster" style="text-align:center">
-    <h2 style="font-size:1.8rem;margin-bottom:4px">تسجيل الحضور</h2>
-    <p class="sub" style="font-size:1.05rem">صوّر الباركود بكاميرا موبايلك لتسجيل حضورك</p>
-    <div id="posterQR" style="display:inline-block;background:#fff;padding:20px;border-radius:18px;margin:16px auto;box-shadow:0 10px 40px rgba(47,227,198,.25)"></div>
-    <p class="note" style="font-size:1rem;margin-top:8px">المؤتمر العلمي الثاني للعلوم والذكاء الاصطناعي</p>
-  </section>
-
   <section class="panel" id="login">
     <div class="loginhead"><div class="ic">🔒</div><div><h2 style="margin:0">تسجيل الدخول</h2><p class="sub" style="margin:0">خاص باللجنة المنظّمة والإدارة</p></div></div>
     <label>البريد الإلكتروني</label><input id="lEmail" dir="ltr" placeholder="admin@email.com">
@@ -206,6 +194,11 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
     </div>
   </section>
 </main>
+
+<div id="fs" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(160deg,#0a1730,#0c1f3f);overflow:auto;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center">
+  <button onclick="hideFs()" style="position:fixed;top:16px;left:16px;background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:10px;padding:9px 18px;cursor:pointer;font-family:inherit;font-size:.95rem">✕ إغلاق</button>
+  <div id="fsBox" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;max-width:560px"></div>
+</div>
 
 <footer>تطوير: مركز المستقبل لتطبيقات الذكاء الاصطناعي — م.د أحمد عدنان المحنّا · منصة المؤتمر (مسوّدة)</footer>
 <div class="draft">مسوّدة v0.7 — للمراجعة</div>
@@ -308,23 +301,23 @@ async function onScan(token){
   loadAdmin();
 }
 
-/* ===== الحضور الذاتي (باركود القاعة) ===== */
+/* ===== الحضور الذاتي + شاشة القاعة (ملء الشاشة) ===== */
+function openFs(html){document.getElementById('fsBox').innerHTML=html;document.getElementById('fs').style.display='flex';}
+function hideFs(){document.getElementById('fs').style.display='none';if(location.hash)history.replaceState(null,'',location.pathname);}
 async function selfCheckIn(){
-  show('checkin');
-  const box=document.getElementById('ciBox');
+  openFs('<p style="color:#9fb3d1;font-size:1.2rem">⏳ جارٍ تسجيل حضورك...</p>');
   const token=localStorage.getItem('conf_token');
-  if(!token){box.innerHTML='<p class="note" style="margin-bottom:12px">ما لگينا تسجيلك على هذا الجهاز. رجاءً سجّل أولاً ثم أعد مسح الباركود.</p><button class="btn full" onclick="show(\'reg\')">📝 التسجيل الآن</button>';return}
-  box.innerHTML='<p class="note">⏳ جارٍ تسجيل حضورك...</p>';
+  if(!token){openFs('<h2 style="color:#fff;margin:0">ما لگينا تسجيلك على هذا الجهاز</h2><p style="color:#9fb3d1">رجاءً سجّل أولاً ثم أعد مسح الباركود.</p><button class="btn" onclick="hideFs();show(\'reg\')">📝 التسجيل الآن</button>');return}
   const {data,error}=await sb.rpc('check_in',{p_token:token});
-  if(error||!data||!data.ok){box.innerHTML='<p class="note">تعذّر تسجيل الحضور، حاول مرة أخرى.</p><button class="btn" onclick="selfCheckIn()">إعادة المحاولة</button>';return}
-  if(data.already){box.innerHTML='<div style="font-size:3rem">🎉</div><h3 style="margin:6px 0">أهلاً '+data.name+'</h3><p class="note" style="color:var(--gold)">حضورك مسجّل مسبقاً — أهلاً بك مجدداً.</p>';}
-  else{box.innerHTML='<div style="font-size:3rem">✅</div><h3 style="margin:6px 0">تم تسجيل حضورك يا '+data.name+'</h3><p class="note" style="color:var(--cyan)">نتمنّى لك مؤتمراً موفقاً 🌟</p>';}
+  if(error||!data||!data.ok){openFs('<p style="color:#ffb3b3;font-size:1.2rem">تعذّر تسجيل الحضور</p><button class="btn" onclick="selfCheckIn()">إعادة المحاولة</button>');return}
+  if(data.already){openFs('<div style="font-size:4.5rem">🎉</div><h2 style="color:#fff;margin:0">أهلاً '+data.name+'</h2><p style="color:var(--gold);font-size:1.2rem">حضورك مسجّل مسبقاً — أهلاً بك مجدداً</p>');}
+  else{openFs('<div style="font-size:4.5rem">✅</div><h2 style="color:#fff;margin:0">تم تسجيل حضورك يا '+data.name+'</h2><p style="color:var(--cyan);font-size:1.2rem">نتمنّى لك مؤتمراً موفقاً 🌟</p>');}
 }
 function showPoster(){
-  show('poster');
+  openFs('<h1 style="color:#fff;font-size:2.6rem;margin:0">تسجيل الحضور</h1><p style="color:#9fb3d1;font-size:1.25rem;margin:4px 0 6px">صوّر الباركود بكاميرا موبايلك</p><div id="posterQR" style="background:#fff;padding:22px;border-radius:20px"></div><p style="color:#9fb3d1;font-size:1.15rem;margin-top:6px">المؤتمر العلمي الثاني للعلوم والذكاء الاصطناعي</p>');
   const box=document.getElementById('posterQR');box.innerHTML='';
   const url=location.origin+location.pathname+'#checkin';
-  new QRCode(box,{text:url,width:300,height:300,colorDark:'#0a1730',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+  new QRCode(box,{text:url,width:340,height:340,colorDark:'#0a1730',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
 }
 function routeHash(){
   if(location.hash==='#checkin')selfCheckIn();
