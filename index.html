@@ -178,9 +178,15 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
     <div class="loginhead"><div class="ic">📊</div><div><h2 style="margin:0">لوحة التحكم</h2><p class="sub" style="margin:0">إحصائيات المسجّلين اللحظية</p></div></div>
     <div id="adminStats" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0"></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn" onclick="openScan()">📷 تسجيل حضور</button>
       <button class="btn" onclick="loadAdmin()">🔄 تحديث</button>
       <button class="btn gold" onclick="exportExcel()">⬇️ تصدير Excel</button>
       <button class="btn ghost" onclick="adminLogout()">خروج</button>
+    </div>
+    <div id="scanWrap" style="display:none;margin-bottom:14px;background:rgba(0,0,0,.3);border:1px solid var(--cyan);border-radius:14px;padding:12px">
+      <div id="reader" style="width:100%;max-width:340px;margin:0 auto;border-radius:12px;overflow:hidden"></div>
+      <p class="note" id="scanMsg" style="text-align:center;margin:10px 0 6px">وجّه الكامرة نحو باركود المشارك</p>
+      <div style="text-align:center"><button class="btn ghost" onclick="closeScan()">إغلاق الكامرة</button></div>
     </div>
     <div style="overflow:auto;max-height:420px;border:1px solid rgba(255,255,255,.1);border-radius:12px">
       <table id="adminTable" style="width:100%;border-collapse:collapse;font-size:.85rem"></table>
@@ -194,6 +200,7 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@gh-pages/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 const SB_URL="https://wuxoqqljppedalibkstb.supabase.co";
 const SB_KEY="sb_publishable_U4jxSWJba_85wZ7S_xjVUA_QDlg3ozS";
@@ -239,9 +246,11 @@ async function loadAdmin(){
   const {data,error}=await sb.from('registrants').select('*').order('created_at',{ascending:false});
   if(error){st.innerHTML='<p class="note">تعذّر التحميل: '+error.message+'</p>';return}
   _regs=data||[];
+  const {count:att}=await sb.from('attendance').select('*',{count:'exact',head:true});
   const cats=['باحث','مشارك','زائر','عضو في الجامعة','عضو لجنة المؤتمر'];
   const cnt={};cats.forEach(c=>cnt[c]=0);_regs.forEach(r=>{if(cnt[r.category]!=null)cnt[r.category]++});
-  let s='<div style="grid-column:1/-1;background:rgba(47,227,198,.12);border:1px solid var(--cyan);border-radius:12px;padding:14px;text-align:center"><div style="font-size:2rem;font-weight:800;color:var(--cyan)">'+_regs.length+'</div><div class="note">إجمالي المسجّلين</div></div>';
+  let s='<div style="background:rgba(47,227,198,.12);border:1px solid var(--cyan);border-radius:12px;padding:14px;text-align:center"><div style="font-size:2rem;font-weight:800;color:var(--cyan)">'+_regs.length+'</div><div class="note">إجمالي المسجّلين</div></div>';
+  s+='<div style="background:rgba(232,197,106,.12);border:1px solid var(--gold);border-radius:12px;padding:14px;text-align:center"><div style="font-size:2rem;font-weight:800;color:var(--gold)">'+(att||0)+'</div><div class="note">عدد الحاضرين</div></div>';
   cats.forEach(c=>{s+='<div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;text-align:center"><div style="font-size:1.4rem;font-weight:700">'+cnt[c]+'</div><div class="note">'+c+'</div></div>'});
   st.innerHTML=s;
   let h='<thead><tr style="background:rgba(255,255,255,.06)"><th style="padding:8px;text-align:right">#</th><th style="padding:8px;text-align:right">الاسم</th><th style="padding:8px;text-align:right">التصنيف</th><th style="padding:8px;text-align:right">الجهة</th><th style="padding:8px;text-align:right">البريد</th><th style="padding:8px;text-align:right">الموبايل</th></tr></thead><tbody>';
@@ -253,6 +262,36 @@ function exportExcel(){
   const rows=_regs.map((r,i)=>({'#':i+1,'الاسم الكامل':r.full_name||'','التصنيف':r.category||'','الجهة':r.affiliation||'','البريد الإلكتروني':r.email||'','رقم الموبايل':r.mobile||'','تاريخ التسجيل':r.created_at?new Date(r.created_at).toLocaleString('ar'):''}));
   const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'المسجّلون');
   XLSX.writeFile(wb,'المسجلون-المؤتمر.xlsx');
+}
+
+/* ===== الحضور بالباركود ===== */
+let _scanner=null,_busy=false;
+async function openScan(){
+  const wrap=document.getElementById('scanWrap');wrap.style.display='block';
+  document.getElementById('scanMsg').textContent='وجّه الكامرة نحو باركود المشارك';
+  wrap.scrollIntoView({behavior:'smooth',block:'center'});
+  if(_scanner)return;
+  _scanner=new Html5Qrcode('reader');
+  try{
+    await _scanner.start({facingMode:'environment'},{fps:10,qrbox:220},onScan,()=>{});
+  }catch(e){document.getElementById('scanMsg').textContent='تعذّر فتح الكامرة: '+e;}
+}
+async function closeScan(){
+  if(_scanner){try{await _scanner.stop();_scanner.clear()}catch(e){}_scanner=null;}
+  document.getElementById('scanWrap').style.display='none';
+}
+async function onScan(token){
+  if(_busy)return;_busy=true;setTimeout(()=>_busy=false,2500);
+  const msg=document.getElementById('scanMsg');
+  msg.textContent='⏳ جارٍ التحقق...';
+  const {data:reg,error}=await sb.from('registrants').select('id,full_name,category').eq('qr_token',token).maybeSingle();
+  if(error||!reg){msg.innerHTML='<span style="color:#ff8a8a">⚠️ باركود غير معروف</span>';return}
+  const {data:ex}=await sb.from('attendance').select('id').eq('registrant_id',reg.id).limit(1);
+  if(ex&&ex.length){msg.innerHTML='<span style="color:var(--gold)">↩️ سبق تسجيل حضور: '+reg.full_name+'</span>';return}
+  const {error:ie}=await sb.from('attendance').insert({registrant_id:reg.id,method:'staff_scan'});
+  if(ie){msg.innerHTML='<span style="color:#ff8a8a">تعذّر الحفظ، أعد المحاولة</span>';return}
+  msg.innerHTML='<span style="color:var(--cyan)">✅ تم تسجيل حضور: <b>'+reg.full_name+'</b> ('+reg.category+')</span>';
+  loadAdmin();
 }
 
 const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
