@@ -166,6 +166,18 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
     <p class="note">سيعرض هنا جلسات اليومين (29 و30) مع المتحدثين والقاعات والأوقات، ويقدر المشارك يحفظ الجلسات التي تهمّه. 🛠️</p>
   </section>
 
+  <section class="panel" id="checkin">
+    <div class="loginhead"><div class="ic">✅</div><div><h2 style="margin:0">تسجيل الحضور</h2><p class="sub" style="margin:0">المؤتمر العلمي الثاني للعلوم والذكاء الاصطناعي</p></div></div>
+    <div id="ciBox" style="text-align:center;padding:18px"><p class="note">⏳ لحظة...</p></div>
+  </section>
+
+  <section class="panel" id="poster" style="text-align:center">
+    <h2 style="font-size:1.8rem;margin-bottom:4px">تسجيل الحضور</h2>
+    <p class="sub" style="font-size:1.05rem">صوّر الباركود بكاميرا موبايلك لتسجيل حضورك</p>
+    <div id="posterQR" style="display:inline-block;background:#fff;padding:20px;border-radius:18px;margin:16px auto;box-shadow:0 10px 40px rgba(47,227,198,.25)"></div>
+    <p class="note" style="font-size:1rem;margin-top:8px">المؤتمر العلمي الثاني للعلوم والذكاء الاصطناعي</p>
+  </section>
+
   <section class="panel" id="login">
     <div class="loginhead"><div class="ic">🔒</div><div><h2 style="margin:0">تسجيل الدخول</h2><p class="sub" style="margin:0">خاص باللجنة المنظّمة والإدارة</p></div></div>
     <label>البريد الإلكتروني</label><input id="lEmail" dir="ltr" placeholder="admin@email.com">
@@ -178,7 +190,8 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
     <div class="loginhead"><div class="ic">📊</div><div><h2 style="margin:0">لوحة التحكم</h2><p class="sub" style="margin:0">إحصائيات المسجّلين اللحظية</p></div></div>
     <div id="adminStats" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0"></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-      <button class="btn" onclick="openScan()">📷 تسجيل حضور</button>
+      <button class="btn" onclick="showPoster()">🖥️ شاشة القاعة</button>
+      <button class="btn" onclick="openScan()">📷 مسح يدوي</button>
       <button class="btn" onclick="loadAdmin()">🔄 تحديث</button>
       <button class="btn gold" onclick="exportExcel()">⬇️ تصدير Excel</button>
       <button class="btn ghost" onclick="adminLogout()">خروج</button>
@@ -222,6 +235,7 @@ async function makeQR(){
   const {error}=await sb.from('registrants').insert({full_name:name,affiliation:org,email:mail,mobile:phone,category:type,qr_token:token});
   btn.textContent=old;btn.disabled=false;
   if(error){nameEl.textContent='تعذّر التسجيل، حاول مرة أخرى. ('+error.message+')';return}
+  try{localStorage.setItem('conf_token',token);localStorage.setItem('conf_name',name)}catch(e){}
   const img=document.getElementById('qrImg');img.innerHTML='';
   new QRCode(img,{text:token,width:180,height:180,colorDark:'#0a1730',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
   nameEl.innerHTML='✅ تم تسجيلك يا <b>'+name+'</b> — احتفظ بالباركود للحضور والشهادة.';
@@ -293,6 +307,31 @@ async function onScan(token){
   msg.innerHTML='<span style="color:var(--cyan)">✅ تم تسجيل حضور: <b>'+reg.full_name+'</b> ('+reg.category+')</span>';
   loadAdmin();
 }
+
+/* ===== الحضور الذاتي (باركود القاعة) ===== */
+async function selfCheckIn(){
+  show('checkin');
+  const box=document.getElementById('ciBox');
+  const token=localStorage.getItem('conf_token');
+  if(!token){box.innerHTML='<p class="note" style="margin-bottom:12px">ما لگينا تسجيلك على هذا الجهاز. رجاءً سجّل أولاً ثم أعد مسح الباركود.</p><button class="btn full" onclick="show(\'reg\')">📝 التسجيل الآن</button>';return}
+  box.innerHTML='<p class="note">⏳ جارٍ تسجيل حضورك...</p>';
+  const {data,error}=await sb.rpc('check_in',{p_token:token});
+  if(error||!data||!data.ok){box.innerHTML='<p class="note">تعذّر تسجيل الحضور، حاول مرة أخرى.</p><button class="btn" onclick="selfCheckIn()">إعادة المحاولة</button>';return}
+  if(data.already){box.innerHTML='<div style="font-size:3rem">🎉</div><h3 style="margin:6px 0">أهلاً '+data.name+'</h3><p class="note" style="color:var(--gold)">حضورك مسجّل مسبقاً — أهلاً بك مجدداً.</p>';}
+  else{box.innerHTML='<div style="font-size:3rem">✅</div><h3 style="margin:6px 0">تم تسجيل حضورك يا '+data.name+'</h3><p class="note" style="color:var(--cyan)">نتمنّى لك مؤتمراً موفقاً 🌟</p>';}
+}
+function showPoster(){
+  show('poster');
+  const box=document.getElementById('posterQR');box.innerHTML='';
+  const url=location.origin+location.pathname+'#checkin';
+  new QRCode(box,{text:url,width:300,height:300,colorDark:'#0a1730',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+}
+function routeHash(){
+  if(location.hash==='#checkin')selfCheckIn();
+  else if(location.hash==='#poster')showPoster();
+}
+routeHash();
+addEventListener('hashchange',routeHash);
 
 const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
 document.querySelectorAll('#stats b[data-c]').forEach(el=>{const t=+el.dataset.c,suf=el.dataset.suf||'';let i=0;const step=()=>{i+=Math.ceil(t/28);if(i>=t){el.textContent=t+suf}else{el.textContent=i;requestAnimationFrame(step)}};setTimeout(step,300)});
