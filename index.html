@@ -161,9 +161,9 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
   </section>
 
   <section class="panel" id="sched">
-    <h2>جدول الجلسات</h2>
-    <p class="sub">جدول تفاعلي ليومي المؤتمر — تحت الإنشاء.</p>
-    <p class="note">سيعرض هنا جلسات اليومين (29 و30) مع المتحدثين والقاعات والأوقات، ويقدر المشارك يحفظ الجلسات التي تهمّه. 🛠️</p>
+    <h2>الجدول العلمي للمؤتمر</h2>
+    <p class="sub">الجلسات البحثية — 29 تشرين الثاني 2026 · 12:00 – 1:30 ظهراً</p>
+    <div id="schedList" style="margin-top:12px"></div>
   </section>
 
   <section class="panel" id="login">
@@ -180,6 +180,7 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
       <button class="btn" onclick="showPoster()">🖥️ شاشة القاعة</button>
       <button class="btn" onclick="openScan()">📷 مسح يدوي</button>
+      <button class="btn" onclick="previewCert()">🎓 معاينة شهادة</button>
       <button class="btn" onclick="loadAdmin()">🔄 تحديث</button>
       <button class="btn gold" onclick="exportExcel()">⬇️ تصدير Excel</button>
       <button class="btn ghost" onclick="adminLogout()">خروج</button>
@@ -260,8 +261,8 @@ async function loadAdmin(){
   s+='<div style="background:rgba(232,197,106,.12);border:1px solid var(--gold);border-radius:12px;padding:14px;text-align:center"><div style="font-size:2rem;font-weight:800;color:var(--gold)">'+(att||0)+'</div><div class="note">عدد الحاضرين</div></div>';
   cats.forEach(c=>{s+='<div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;text-align:center"><div style="font-size:1.4rem;font-weight:700">'+cnt[c]+'</div><div class="note">'+c+'</div></div>'});
   st.innerHTML=s;
-  let h='<thead><tr style="background:rgba(255,255,255,.06)"><th style="padding:8px;text-align:right">#</th><th style="padding:8px;text-align:right">الاسم</th><th style="padding:8px;text-align:right">التصنيف</th><th style="padding:8px;text-align:right">الجهة</th><th style="padding:8px;text-align:right">البريد</th><th style="padding:8px;text-align:right">الموبايل</th></tr></thead><tbody>';
-  _regs.forEach((r,i)=>{h+='<tr style="border-top:1px solid rgba(255,255,255,.07)"><td style="padding:8px">'+(i+1)+'</td><td style="padding:8px">'+(r.full_name||'')+'</td><td style="padding:8px">'+(r.category||'')+'</td><td style="padding:8px">'+(r.affiliation||'')+'</td><td style="padding:8px" dir="ltr">'+(r.email||'')+'</td><td style="padding:8px" dir="ltr">'+(r.mobile||'')+'</td></tr>'});
+  let h='<thead><tr style="background:rgba(255,255,255,.06)"><th style="padding:8px;text-align:right">#</th><th style="padding:8px;text-align:right">الاسم</th><th style="padding:8px;text-align:right">التصنيف</th><th style="padding:8px;text-align:right">الجهة</th><th style="padding:8px;text-align:right">البريد</th><th style="padding:8px;text-align:right">الموبايل</th><th style="padding:8px;text-align:center">شهادة</th></tr></thead><tbody>';
+  _regs.forEach((r,i)=>{h+='<tr style="border-top:1px solid rgba(255,255,255,.07)"><td style="padding:8px">'+(i+1)+'</td><td style="padding:8px">'+(r.full_name||'')+'</td><td style="padding:8px">'+(r.category||'')+'</td><td style="padding:8px">'+(r.affiliation||'')+'</td><td style="padding:8px" dir="ltr">'+(r.email||'')+'</td><td style="padding:8px" dir="ltr">'+(r.mobile||'')+'</td><td style="padding:8px;text-align:center"><button class="btn" style="padding:4px 10px;font-size:.8rem" onclick="downloadCert('+i+')">🎓</button></td></tr>'});
   tb.innerHTML=h+'</tbody>';
 }
 function exportExcel(){
@@ -325,6 +326,97 @@ function routeHash(){
 }
 routeHash();
 addEventListener('hashchange',routeHash);
+
+/* ===== الجدول العلمي ===== */
+const SESSIONS=[
+ {n:1,hall:'القاعة المركزية — رئاسة الجامعة',chair:'أ.م.د. العباس احمد عبد الجبار',rap:'م.د. احمد عدنان هادي',papers:[
+   {t:'The Role of Artificial Intelligence in Mathematics',a:'Abbas Alaa Mahdi, Hind Ibrahim Mohammed'},
+   {t:'A Hybrid Deep Learning Framework for Validation-Driven Person Extraction and Automated Mask Generation',a:'Zahraa Faisal, Nidhal K. El Abbadi'},
+   {t:'DeepAI-Driven Hybrid Machine Learning Approaches for Skin Disease Detection Using DNN and Multi-Feature Extraction',a:'Ryan Zaid Hamo, Ziad M. Abood'},
+   {t:'Explainable and Externally Validated Deep Learning for Carbon Steel Corrosion Detection',a:'Najem A. Al-Rubaiey, Atheer F. Mahmood, Mohammed A. Ghazi, Ahmed F. Kadhim, Mohammed T. Adnan'},
+   {t:'Ocu HybridXAI: A Dual Stream EfficientNet–Swin Transformer Architecture for Explainable Multi Label Ocular Disease Classification',a:'Waleed R. Shoga'},
+   {t:'Multi-Robot Path Planning Using the Improved Rapidly Exploring Random Trees with Salp Swarm Algorithm',a:'Dena Kadhim Muhsen, Ahmed T. Sadiq, Firas Abdulrazzaq Raheem'}]},
+ {n:2,hall:'قاعة الأنشطة الطلابية — البناية الطبية الأولى',chair:'أ.م.د. بشار محمد',rap:'د. عبد الكاظم عبد الكريم الدريعي',papers:[
+   {t:'Machine Learning-Based Prediction of Water-Oil Ratio (WOR) Using Production and Reservoir Parameters for Intelligent Production Management',a:'Shereen M. Ibrahim, Farah Nabeel Abdulrazzaq'},
+   {t:'A Framework for Assessment of Environmental and Legal Compliance of Biomedical Waste Management in Iraqi Hospitals Based on Artificial Intelligence',a:'Zena Hussein Ali, Atheer Zaki Al-Qaisi'},
+   {t:'Artificial Intelligence and Machine Learning Models for Predicting Treatment Outcomes in Adults With Neck Pain: A Systematic Review',a:'Dr Rana Ali Ballouk'},
+   {t:'Artificial Intelligence-Assisted Analysis of Circulating miRNAs for Early Diagnosis of Gynecological Diseases: A Comprehensive Review',a:'Roaa Mohammed Jabbar'},
+   {t:'Design and Implementation of an Allergy Testing Management System for Digitizing Clinical Workflows in a Public Allergy Center',a:'Noor Thamer Mahmood, Ahmed Younus AbdulKadhim, Mariam Thamer Mahmood'}]},
+ {n:3,hall:'قاعة A — البناية الطبية الأولى',chair:'أ.د. مهدي عبادي مانع',rap:'م.م. حسام يحيى عبد الواحد',papers:[
+   {t:'A Comparative Performance Evaluation of GA-Hybrid Metaheuristic Algorithms Using CloudSim Toolkits',a:'Saif Ali Abdulhussein, Fahad Ghalib Abdulkadhim'},
+   {t:'Genetic Load Balancing Based on Allocated Space Share Technology in Cloud Information System',a:'Ghusoon Idan Arb'},
+   {t:'Hybrid Neuro-Swarm to Track the Maximum Power Point of Photovoltaic Cells under Partial Shade Conditions: A Comparative Study',a:'Raheel Jawad, Lugain Sadik Hyal, Ruaa Amir'},
+   {t:'Intelligent Genetic Algorithm Framework for PV Orientation and Cooling Management Toward Optimal Energy Output',a:'Raid W. Daoud, Ahmed Abdullah Danook, Omer K. Ahmed'},
+   {t:'A Survey of ML Approaches in Encrypted Traffic: From Anomaly Detection to Explainability',a:'Omaima Qasim Saleh, Sabah Anwer Abdullkareem'},
+   {t:'A PSO-Optimized Hybrid Deep Learning Framework for Multi-Class Network Intrusion Detection and Cybersecurity Threat Classification',a:'Doaa Mohsin Abd Ali Afraji, Jaime Lloret, Lourdes Peñalver'}]},
+ {n:4,hall:'قاعة B — البناية الطبية الأولى',chair:'أ.م.د. سرى خليل عبد',rap:'م.م. أسامة رضا جواد',papers:[
+   {t:'التشكيل الآلي للنصوص العربية غير المنقوطة (دراسة في اللسانيات الحاسوبية والذكاء الاصطناعي)',a:'م.م. رفاه حميد عبد جعفر'},
+   {t:'تحولات المصطلح النقدي العربي في عصر الذكاء الاصطناعي: دراسة معجمية دلالية مقارنة بين الخطاب البشري والتوليد الآلي',a:'د. علاء عبد الخالق حسين، أ.د. خالد عبّود حمودي'},
+   {t:'Eloquence without a Soul: A Comparative Stylistic Study of Simulated Emotion and Critical Judgment in Human- and AI-Generated Poetry',a:'Dr. Rasool Mohammed A. Al-Muslimawi'},
+   {t:'تطبيقات الذكاء الفائق في تحليل الخطاب الثقافي المقارن',a:'أ.م.د. فاضل عبد الأمير شريف'},
+   {t:'الحوكمة الأخلاقية للذكاء الاصطناعي في ضوء مقاصد الشريعة الإسلامية',a:'د. جمال ناصر حسين التميمي'},
+   {t:'اخلاقيات استخدام تطبيقات الذكاء الاصطناعي في البحث العلمي والتعلم لدى طلبة الجامعة',a:'أ.م.د. ضمياء إبراهيم محمد، م.م. هند ابراهيم محمد، م.م. عباس علاء مهدي، علياء إبراهيم محمد'},
+   {t:'The Impact of Interactive Educational Technology Tools on School Play Areas, Supported by Play-Based Learning Strategies: A Comparative Approach and a Case Study',a:'Juman Wajeeh Majeed, Assist. Dr. Ahmed Yousif ALomary'},
+   {t:'تطوير أنظمة إنذار مبكر للهجمات السيبرانية بين الدول في إطار نظرية الردع والحروب الهجينة',a:'أ.د. لبنى خميس مهدي، د. علاء عبدالخالق حسين المنداوي، أ.د. عذراء إسماعيل زيدان'}]},
+ {n:5,hall:'قاعة C — البناية الطبية الأولى',chair:'أ.د. علي كاظم محمد الغرابي',rap:'م.م. سرمد ثائر',papers:[
+   {t:'اثر الذكاء التسويقي في تعزيز تطوير المنتجات في ظل تطبيقات الذكاء الاصطناعية: دراسة ميدانية في شركة زين للاتصالات العراقية',a:'م.م. زيد صالح عمران، م.م. مرتضى ميثم جواد، م.م. انمار ثامر عبيد، م.م. علي حامد عبدالكاظم، م.م. محمد فخري برتو، م.م. ياسر علي العبد الله'},
+   {t:'الشراء الاندفاعي عبر الإنترنت من منظور التسويق الرقمي لدى جيل Z في سياق تطبيقات الذكاء الاصطناعي',a:'م.م. زيد صالح عمران، م.م. ياسر علي العبد الله، م.م. محمد فخري برتو'},
+   {t:'الحوكمة التكيفية للذكاء الاصطناعي التوليدي وأثرها في جودة القرارات الاستراتيجية: دراسة تحليلية',a:'م.م. طيف نبيل الشرقي'},
+   {t:'تقنيات الذكاء الاصطناعي تعيد تشكيل عمل الرقابة المالية: عقود المشتريات الحكومية أنموذجًا',a:'د. هشام عمر حمودي'},
+   {t:'مستقبل المعايير المحاسبية الدولية في ظل التحول المعرفي والثورة المعرفية للذكاء الاصطناعي التوليدي',a:'Hayder Matloob Koshan Al-Shammari, Saad K. M. Al-Hamzawi'},
+   {t:'البحوث الإنسانية المرتبطة بتطبيقات الذكاء الاصطناعي: دراسة تحليلية اقتصادية',a:'الدكتور بهلولي احمد'},
+   {t:'الذكاء الاصطناعي وتأثيره على الأمن الإنساني: دراسة اجتماعية ميدانية',a:'م.م. سبأ حميد عبيد'}]}
+];
+function renderSched(){
+  const box=document.getElementById('schedList');if(!box)return;
+  let h='';
+  SESSIONS.forEach(s=>{
+    let papers='';
+    s.papers.forEach((p,i)=>{papers+='<div style="padding:10px 12px;border-top:1px solid rgba(255,255,255,.08)"><div style="display:flex;gap:8px"><span style="color:var(--cyan);font-weight:700;flex:0 0 auto">'+(i+1)+'.</span><div><div style="font-weight:600;line-height:1.5">'+p.t+'</div><div class="note" style="margin-top:3px">'+p.a+'</div></div></div></div>';});
+    h+='<div class="sess" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;margin-bottom:12px;overflow:hidden">'
+      +'<div onclick="var b=this.nextElementSibling;var o=b.style.display===\'block\';b.style.display=o?\'none\':\'block\';this.querySelector(\'.arw\').style.transform=o?\'none\':\'rotate(180deg)\'" style="cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:12px">'
+      +'<div style="flex:0 0 auto;width:42px;height:42px;border-radius:12px;background:var(--cyan);color:#06243a;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.2rem">'+s.n+'</div>'
+      +'<div style="flex:1"><div style="font-weight:700">الجلسة البحثية '+s.n+'</div><div class="note" style="margin-top:2px">'+s.hall+'</div></div>'
+      +'<div class="arw" style="color:var(--cyan);font-size:1.3rem">﹀</div></div>'
+      +'<div class="sbody" style="display:none">'
+      +'<div style="padding:4px 16px 12px;display:flex;flex-wrap:wrap;gap:8px"><span style="background:rgba(47,227,198,.12);border-radius:8px;padding:5px 10px;font-size:.82rem">👤 رئيس الجلسة: '+s.chair+'</span><span style="background:rgba(232,197,106,.12);border-radius:8px;padding:5px 10px;font-size:.82rem">📝 المقرر: '+s.rap+'</span><span style="background:rgba(255,255,255,.06);border-radius:8px;padding:5px 10px;font-size:.82rem">🕛 12:00 – 1:30 ظهراً</span></div>'
+      +papers+'</div></div>';
+  });
+  box.innerHTML=h;
+}
+renderSched();
+
+/* ===== الشهادات ===== */
+function genCert(name){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=async ()=>{
+      try{await document.fonts.ready}catch(e){}
+      const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+      const x=c.getContext('2d');x.drawImage(img,0,0);
+      x.fillStyle='#0a2a4a';x.textAlign='center';x.textBaseline='alphabetic';
+      x.font='700 '+Math.round(img.width*0.030)+'px Cairo, Tajawal, sans-serif';
+      x.fillText(name, img.width*0.45, img.height*0.263);
+      x.font='700 '+Math.round(img.width*0.028)+'px Cairo, Tajawal, sans-serif';
+      x.fillText(name, img.width*0.50, img.height*0.558);
+      res(c.toDataURL('image/jpeg',0.92));
+    };
+    img.onerror=()=>res(null);
+    img.src='cert.jpg?v=1';
+  });
+}
+async function previewCert(){
+  if(!_regs.length){alert('لا يوجد مسجّلون بعد — سجّل اسماً تجريبياً أولاً.');return}
+  openFs('<p style="color:#9fb3d1;font-size:1.1rem">⏳ جارٍ توليد المعاينة...</p>');
+  const url=await genCert(_regs[0].full_name);
+  if(!url){openFs('<p style="color:#ffb3b3;font-size:1.1rem">تعذّر تحميل صورة الشهادة — تأكّد من رفع ملف <b>cert.jpg</b> للمستودع.</p>');return}
+  openFs('<p style="color:#9fb3d1;font-size:1rem;margin:0">معاينة شهادة: <b style="color:#fff">'+_regs[0].full_name+'</b></p><img src="'+url+'" style="max-width:100%;max-height:74vh;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.4)"><p class="note" style="color:#9fb3d1">إذا الاسم مو بمكانه الصحيح، گلّي وأزبّطه.</p>');
+}
+async function downloadCert(i){
+  const r=_regs[i];if(!r)return;
+  const url=await genCert(r.full_name);if(!url){alert('تعذّر تحميل صورة الشهادة (cert.jpg)');return}
+  const a=document.createElement('a');a.href=url;a.download='شهادة-'+(r.full_name||'مشارك')+'.jpg';document.body.appendChild(a);a.click();a.remove();
+}
 
 const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
 document.querySelectorAll('#stats b[data-c]').forEach(el=>{const t=+el.dataset.c,suf=el.dataset.suf||'';let i=0;const step=()=>{i+=Math.ceil(t/28);if(i>=t){el.textContent=t+suf}else{el.textContent=i;requestAnimationFrame(step)}};setTimeout(step,300)});
