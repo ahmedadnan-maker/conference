@@ -183,8 +183,10 @@ footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 20px;b
       <button class="btn" onclick="previewCert()">🎓 معاينة شهادة</button>
       <button class="btn" onclick="loadAdmin()">🔄 تحديث</button>
       <button class="btn gold" onclick="exportExcel()">⬇️ تصدير Excel</button>
+      <button class="btn gold" onclick="sendAllCerts()">📧 إرسال الشهادات للكل</button>
       <button class="btn ghost" onclick="adminLogout()">خروج</button>
     </div>
+    <p class="note" id="sendStatus" style="text-align:center;margin:0 0 10px"></p>
     <div id="scanWrap" style="display:none;margin-bottom:14px;background:rgba(0,0,0,.3);border:1px solid var(--cyan);border-radius:14px;padding:12px">
       <div id="reader" style="width:100%;max-width:340px;margin:0 auto;border-radius:12px;overflow:hidden"></div>
       <p class="note" id="scanMsg" style="text-align:center;margin:10px 0 6px">وجّه الكامرة نحو باركود المشارك</p>
@@ -262,7 +264,7 @@ async function loadAdmin(){
   cats.forEach(c=>{s+='<div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px;text-align:center"><div style="font-size:1.4rem;font-weight:700">'+cnt[c]+'</div><div class="note">'+c+'</div></div>'});
   st.innerHTML=s;
   let h='<thead><tr style="background:rgba(255,255,255,.06)"><th style="padding:8px;text-align:right">#</th><th style="padding:8px;text-align:right">الاسم</th><th style="padding:8px;text-align:right">التصنيف</th><th style="padding:8px;text-align:right">الجهة</th><th style="padding:8px;text-align:right">البريد</th><th style="padding:8px;text-align:right">الموبايل</th><th style="padding:8px;text-align:center">شهادة</th></tr></thead><tbody>';
-  _regs.forEach((r,i)=>{h+='<tr style="border-top:1px solid rgba(255,255,255,.07)"><td style="padding:8px">'+(i+1)+'</td><td style="padding:8px">'+(r.full_name||'')+'</td><td style="padding:8px">'+(r.category||'')+'</td><td style="padding:8px">'+(r.affiliation||'')+'</td><td style="padding:8px" dir="ltr">'+(r.email||'')+'</td><td style="padding:8px" dir="ltr">'+(r.mobile||'')+'</td><td style="padding:8px;text-align:center"><button class="btn" style="padding:4px 10px;font-size:.8rem" onclick="downloadCert('+i+')">🎓</button></td></tr>'});
+  _regs.forEach((r,i)=>{h+='<tr style="border-top:1px solid rgba(255,255,255,.07)"><td style="padding:8px">'+(i+1)+'</td><td style="padding:8px">'+(r.full_name||'')+'</td><td style="padding:8px">'+(r.category||'')+'</td><td style="padding:8px">'+(r.affiliation||'')+'</td><td style="padding:8px" dir="ltr">'+(r.email||'')+'</td><td style="padding:8px" dir="ltr">'+(r.mobile||'')+'</td><td style="padding:8px;text-align:center;white-space:nowrap"><button class="btn" style="padding:4px 8px;font-size:.8rem" onclick="downloadCert('+i+')" title="تحميل">🎓</button> <button class="btn" style="padding:4px 8px;font-size:.8rem" onclick="emailCert('+i+')" title="إرسال بالإيميل">📧</button></td></tr>'});
   tb.innerHTML=h+'</tbody>';
 }
 function exportExcel(){
@@ -416,6 +418,37 @@ async function downloadCert(i){
   const r=_regs[i];if(!r)return;
   const url=await genCert(r.full_name);if(!url){alert('تعذّر تحميل صورة الشهادة (cert.jpg)');return}
   const a=document.createElement('a');a.href=url;a.download='شهادة-'+(r.full_name||'مشارك')+'.jpg';document.body.appendChild(a);a.click();a.remove();
+}
+async function emailOne(r){
+  if(!r.email) return {ok:false,err:'لا يوجد بريد'};
+  const url=await genCert(r.full_name);
+  if(!url) return {ok:false,err:'تعذّر توليد الشهادة'};
+  const {data,error}=await sb.functions.invoke('send-cert',{body:{to:r.email,name:r.full_name,imageBase64:url}});
+  if(error) return {ok:false,err:error.message||'خطأ بالإرسال'};
+  if(data&&data.error) return {ok:false,err:data.error};
+  return {ok:true};
+}
+async function emailCert(i){
+  const r=_regs[i];if(!r)return;
+  if(!confirm('إرسال الشهادة إلى:\n'+r.full_name+'\n'+r.email+' ؟'))return;
+  const s=document.getElementById('sendStatus');s.textContent='⏳ جارٍ الإرسال إلى '+r.full_name+'...';
+  const res=await emailOne(r);
+  s.textContent='';
+  alert(res.ok?('✅ تم الإرسال إلى '+r.email):('❌ فشل الإرسال: '+res.err));
+}
+async function sendAllCerts(){
+  if(!_regs.length){alert('لا يوجد مسجّلون بعد.');return}
+  if(!confirm('سيتم إرسال الشهادة إلى جميع المسجّلين ('+_regs.length+' مشارك).\nهل تريد المتابعة؟'))return;
+  const s=document.getElementById('sendStatus');let sent=0,fail=0,failList=[];
+  for(let i=0;i<_regs.length;i++){
+    const r=_regs[i];
+    s.textContent='⏳ الإرسال... ('+(i+1)+' من '+_regs.length+') — نجح: '+sent+' | فشل: '+fail;
+    const res=await emailOne(r);
+    if(res.ok)sent++;else{fail++;failList.push(r.full_name+' ('+res.err+')')}
+    await new Promise(x=>setTimeout(x,900));
+  }
+  s.textContent='انتهى — نجح: '+sent+' | فشل: '+fail;
+  alert('انتهى الإرسال ✅\nنجح: '+sent+'\nفشل: '+fail+(failList.length?('\n\nتعذّر إرسال:\n'+failList.join('\n')):''));
 }
 
 const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
